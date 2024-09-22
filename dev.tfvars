@@ -1,9 +1,9 @@
-min_size = 1
-max_size = 2
+min_size         = 1
+max_size         = 2
 desired_capacity = 1
-instance_type = "t2.micro"
+instance_type    = "t2.micro"
 # image_id = "ami-01811d4912b4ccb26" # ubuntu ami
 image_id = "ami-07ffdaf29ba573fee" # ippei.com
-region = "us-east-1"
-vpc_az = [ "us-east-1a", "us-east-1b" ]
+region   = "us-east-1"
+vpc_az   = ["us-east-1a", "us-east-1b"]
 key_name = "ec2-users-key-us-east"

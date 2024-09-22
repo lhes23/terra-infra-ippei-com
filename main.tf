@@ -128,7 +128,7 @@ resource "aws_launch_template" "terra_lt" {
   image_id      = var.image_id
   instance_type = var.instance_type
   key_name      = var.key_name
-#   user_data     = filebase64("userdata.sh")
+  #   user_data     = filebase64("userdata.sh")
 
   network_interfaces {
     associate_public_ip_address = true
@@ -158,6 +158,46 @@ resource "aws_autoscaling_group" "terra_asg" {
     propagate_at_launch = true
   }
 }
+
+resource "aws_cloudwatch_metric_alarm" "high_cpu_alarm" {
+  alarm_name          = "high-cpu-alarm"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "60" # Set the threshold for CPU utilization
+  alarm_description   = "This alarm triggers when CPU > 60%"
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.terra_asg.name
+  }
+
+  alarm_actions = [aws_autoscaling_policy.scale_up_policy.arn]
+  ok_actions    = [aws_autoscaling_policy.scale_down_policy.arn]
+
+  # Optional action when the alarm state changes to INSUFFICIENT_DATA
+  insufficient_data_actions = []
+}
+
+# Scale up when CPU utilization > 60%
+resource "aws_autoscaling_policy" "scale_up_policy" {
+  name                   = "scale-up-policy"
+  scaling_adjustment     = 1 # Number of instances to add
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300 # Time to wait before another scaling activity
+  autoscaling_group_name = aws_autoscaling_group.terra_asg.name
+}
+
+# Scale down when CPU utilization is lower
+resource "aws_autoscaling_policy" "scale_down_policy" {
+  name                   = "scale-down-policy"
+  scaling_adjustment     = -1 # Number of instances to remove
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300
+  autoscaling_group_name = aws_autoscaling_group.terra_asg.name
+}
+
 
 # Output the ALB DNS name
 output "alb_dns_name" {
