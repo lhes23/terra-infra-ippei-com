@@ -1,5 +1,5 @@
 min_size         = 1
-max_size         = 2
+max_size         = 3
 desired_capacity = 1
 instance_type    = "t2.micro"
 # image_id = "ami-01811d4912b4ccb26" # ubuntu ami
