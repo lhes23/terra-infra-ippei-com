@@ -128,7 +128,7 @@ resource "aws_launch_template" "terra_lt" {
   image_id      = var.image_id
   instance_type = var.instance_type
   key_name      = var.key_name
-  #   user_data     = filebase64("userdata.sh")
+  user_data     = filebase64("userdata.sh")
 
   network_interfaces {
     associate_public_ip_address = true
@@ -195,6 +195,63 @@ resource "aws_autoscaling_policy" "scale_down_policy" {
   scaling_adjustment     = -1 # Number of instances to remove
   adjustment_type        = "ChangeInCapacity"
   cooldown               = 300
+  autoscaling_group_name = aws_autoscaling_group.terra_asg.name
+}
+
+# Alarm to add 1 instance when free memory is less than or equal to 20%
+resource "aws_cloudwatch_metric_alarm" "low_free_mem_alarm" {
+  alarm_name          = "low-free-memory-alarm"
+  comparison_operator = "LessThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "mem_free"
+  namespace           = "CustomMetrics"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = 20 # Threshold for free memory in percentage
+  alarm_description   = "This alarm triggers when free memory is <= 20%"
+
+  # Use InstanceId as a dimension for memory-related metrics
+  dimensions = {
+    InstanceId = aws_autoscaling_group.terra_asg.name
+  }
+
+  alarm_actions = [aws_autoscaling_policy.scale_up_policy_memory.arn]
+}
+
+# Alarm to remove 1 instance when free memory is greater than or equal to 70%
+resource "aws_cloudwatch_metric_alarm" "high_free_mem_alarm" {
+  alarm_name          = "high-free-memory-alarm"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "mem_free"
+  namespace           = "CustomMetrics"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = 70 # Threshold for free memory in percentage
+  alarm_description   = "This alarm triggers when free memory is >= 70%"
+
+  dimensions = {
+    InstanceId = aws_autoscaling_group.terra_asg.name
+  }
+
+  alarm_actions = [aws_autoscaling_policy.scale_down_policy_memory.arn]
+}
+
+# Scale up when memory utilization is <= 20% (free memory is low)
+resource "aws_autoscaling_policy" "scale_up_policy_memory" {
+  name                   = "scale-up-policy-memory"
+  scaling_adjustment     = 1 # Add one instance
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300 # Time to wait before another scaling activity
+  autoscaling_group_name = aws_autoscaling_group.terra_asg.name
+}
+
+# Scale down when memory utilization is >= 70% (free memory is high)
+resource "aws_autoscaling_policy" "scale_down_policy_memory" {
+  name                   = "scale-down-policy-memory"
+  scaling_adjustment     = -1 # Remove one instance
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300 # Time to wait before another scaling activity
   autoscaling_group_name = aws_autoscaling_group.terra_asg.name
 }
 
